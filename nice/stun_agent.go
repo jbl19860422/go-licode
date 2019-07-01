@@ -187,7 +187,20 @@ type StunDefaultValidaterData struct {
  * Returns: %TRUE if the authentication was successful,
  * %FALSE if the authentication failed
  */
-func (this *StunAgent) StunMessageIntegrityValidate(message *StunMessage, username string, password string, user_data interface{})
+func (this *StunAgent) StunMessageIntegrityValidate(message *StunMessage,
+													username string,
+													password string,
+													user_data interface{}) bool {
+		return true
+}
+
+func (this *StunAgent) nice_agent_add_stream(n_components uint32) error {
+	if n_components <= 0 {
+		return nil
+	}
+
+	stream := NewStream
+}
 
 
 

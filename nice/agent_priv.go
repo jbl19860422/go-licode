@@ -47,5 +47,6 @@ type NiceAgent struct {
 	next_candidate_id			uint
 	next_stream_id				uint
 	//NiceRNG *rng;
-
+	discovery_list				[]*CandidateDiscovery
+	use_ice_trickle				bool
 }

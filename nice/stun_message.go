@@ -256,7 +256,15 @@ const (
  *
  * A type that holds a STUN transaction id.
  */
-type StunTransactionId [STUN_MESSAGE_TRANS_ID_LEN]uint8
+type StunTransactionId [STUN_MESSAGE_TRANS_ID_LEN]byte
+
+func NewStunTransactionId() *StunTransactionId {
+
+}
+
+func (this StunTransactionId) Encode() [STUN_MESSAGE_TRANS_ID_LEN]byte {
+	return this
+}
 
 /**
  * StunError:
@@ -386,40 +394,49 @@ func (this StunMessageType) Encode() [2]byte {
 	return b
 }
 
-type StunMessageMagicCookie struct {
-	data 		[4]byte
-}
+type StunMessageMagicCookie [STUN_MAGIC_COOKIE_LEN]byte
 
 func NewStunMessageMagicCookie() *StunMessageMagicCookie {
 	//The magic cookie field MUST contain the fixed value 0x2112A442 in
 	//   network byte order
 	d := utils.Int32ToBytes(STUN_MAGIC_COOKIE, binary.BigEndian)
-	m := &StunMessageMagicCookie{}
-	m.data[0] = d[0]
-	m.data[1] = d[1]
-	m.data[2] = d[2]
-	m.data[3] = d[3]
-	return m
+	m := StunMessageMagicCookie{}
+	m[0] = d[0]
+	m[1] = d[1]
+	m[2] = d[2]
+	m[3] = d[3]
+	return &m
+}
+
+func (s StunMessageMagicCookie) Encode() [4]byte {
+	return s
 }
 
 type StunMessageHeader struct {
 	messageType		*StunMessageType
 	messageLen		uint16
+	magicCookie		*StunMessageMagicCookie
+	transactionId 	*StunTransactionId
 }
 
-func NewStunMessageHeader() *StunMessageHeader {
-	
+func NewStunMessageHeader(c StunClass, m StunMethod, l uint16) *StunMessageHeader {
+	return &StunMessageHeader{
+		messageType:NewStunMessageType(c, m),
+		messageLen:l,
+		magicCookie:NewStunMessageMagicCookie(),
+		transactionId:NewStunTransactionId(),
+	}
 }
 
-func (this StunMessageHeader) Encode() [4]byte {
+func (this StunMessageHeader) Encode() []byte {
+	data := make([]byte, 0)
 	b := this.messageType.Encode()
+	//message type
+	data = append(data, []byte(b[0:2])...)
 	c := utils.UInt16ToBytes(this.messageLen, binary.BigEndian)
-	var d [4]byte
-	d[0] = b[0]
-	d[1] = b[1]
-	d[2] = c[0]
-	d[3] = c[1]
-	return d
+	//message length
+	data = append(data, c...)
+	data = append(data, []byte(this.magicCookie.Encode()[0:4])...)
 }
 
 /**
