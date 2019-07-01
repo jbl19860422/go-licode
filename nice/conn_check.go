@@ -77,3 +77,33 @@ again:
 	return priority
 }
 
+/*
+ * Forms new candidate pairs by matching the new local candidate
+ * 'local_cand' with all existing remote candidates of 'component'.
+ *
+ * @param agent context
+ * @param component pointer to the component
+ * @param local local candidate to match with
+ *
+ * @return number of checks added, negative on fatal errors
+ */
+func conn_check_add_for_local_candidate (agent *NiceAgent, stream_id uint, component *NiceComponent, local *NiceCandidate) int {
+/*
+ * note: according to 7.1.3.2.1 "Discovering Peer Reflexive
+ * Candidates", the peer reflexive candidate is not paired
+ * with other remote candidates
+ */
+ 	var added int = 0
+ 	if agent.compatibility == NICE_COMPATIBILITY_RFC5245 && local.typ == NICE_CANDIDATE_TYPE_PEER_REFLEXIVE {
+ 		return 0	//todo
+	}
+
+	for i := 0; i < len(component.remote_candidates); i++ {
+		remote := component.remote_candidates[i]
+		ret := conn_check_add_for_candidate_pair (agent, stream_id, component, local, remote)
+		if ret {
+			added++
+		}
+	}
+ 	return added
+}

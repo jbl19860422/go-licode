@@ -221,7 +221,7 @@ func (this *NiceAgent) nice_agent_gather_candidates(stream_id uint) error {
 		}
 		/* generate a local host candidate for each local address */
 		for i := 0; i < len(this.local_addresses); i++ {
-			for add_type := ADD_HOST_MIN; addr_type <= ADD_HOST_MAX; addr_type++ {
+			for add_type := ADD_HOST_MIN; add_type <= ADD_HOST_MAX; add_type++ {
 				var transport NiceCandidateTransport
 				var current_port uint
 				var start_port	uint

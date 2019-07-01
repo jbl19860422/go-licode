@@ -305,3 +305,35 @@ func nice_candidate_ms_ice_priority (candidate *NiceCandidate, reliable bool, na
 func nice_candidate_ice_priority_full(type_preference uint8, local_preference uint16, component_id	uint) uint32 {
 	return uint32(0x1000000 * uint(type_preference) + 0x100 * uint(local_preference) + (0x100 - component_id))
 }
+
+/*
+ * Assings a foundation to the candidate.
+ *
+ * Implements the mechanism described in ICE sect
+ * 4.1.1.3 "Computing Foundations" (ID-19).
+ */
+func priv_assign_foundation (agent *NiceAgent, candidate *NiceCandidate) {
+	for i := 0; i < len(agent.streams); i++ {
+		stream := agent.streams[i]
+		for j := 0; j < len(stream.components); j++ {
+			component := stream.components[j]
+			for k := 0; k < len(component.local_candidates); k++ {
+				n := component.local_candidates[k]
+				if candidate.typ == n.typ && candidate.transport == n.transport &&
+					nice_address_equal_no_port(candidate.base_addr, n.base_addr) &&
+					(candidate.typ != NICE_CANDIDATE_TYPE_RELAYED || priv_compare_turn_servers(candidate.turn, n.turn)) &&
+					!(agent.compatibility == NICE_COMPATIBILITY_GOOGLE && n.typ == NICE_CANDIDATE_TYPE_RELAYED) {
+					candidate.foundation = n.foundation
+					if n.username != "" {
+						candidate.username = n.username
+					}
+
+					if n.password != "" {
+						candidate.password = n.password
+					}
+				}
+			}
+		}
+	}
+}
+
