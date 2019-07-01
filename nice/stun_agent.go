@@ -1,5 +1,20 @@
 package nice
 
+/**
+ * SECTION:stunagent
+ * @short_description: STUN agent for building and validating STUN messages
+ * @include: stun/stunagent.h
+ * @see_also: #StunMessage
+ * @stability: Stable
+ *
+ * The STUN Agent allows you to create and validate STUN messages easily.
+ * It's main purpose is to make sure the building and validation methods used
+ * are compatible with the RFC you create it with. It also tracks the transaction
+ * ids of the requests you send, so you can validate if a STUN response you
+ * received should be processed by that agent or not.
+ *
+ */
+
 
 /**
  * StunCompatibility:
@@ -71,7 +86,6 @@ const (
 	STUN_VALIDATION_UNKNOWN_ATTRIBUTE
 )
 
-
 /**
  * StunAgentUsageFlags:
  * @STUN_AGENT_USAGE_SHORT_TERM_CREDENTIALS: The agent should be using the short
@@ -121,16 +135,60 @@ const (
 )
 
 type StunAgentSavedIds struct {
-	id			StunTransactionId
-	StunMethod method;
-	uint8_t *key;
-	size_t key_len;
-	uint8_t long_term_key[16];
-	bool long_term_valid;
-	bool valid;
+	id				StunTransactionId
+	method			StunMethod
+	key 			[]byte
+	long_term_key	[8]byte
+	long_term_valid	bool
+	valid 			bool
 }
 
 type StunAgent struct {
-	compatibility		StunCompatibility
-
+	compatibility					StunCompatibility
+	sent_ids						[]StunAgentSavedIds
+	//uint16_t *known_attributes;
+	usage_flags						StunAgentUsageFlags
+	software_attribute				string
+	ms_ice2_send_legacy_connchecks 	bool
 }
+
+/**
+ * StunDefaultValidaterData:
+ * @username: The username
+ * @username_len: The length of the @username
+ * @password: The password
+ * @password_len: The length of the @password
+ *
+ * This structure is used as an element of the user_data to the
+ * stun_agent_default_validater() function for authenticating a STUN
+ * message during validationg.
+ * <para> See also: stun_agent_default_validater() </para>
+ */
+type StunDefaultValidaterData struct {
+	username []byte
+	password []byte
+}
+
+/**
+ * StunMessageIntegrityValidate:
+ * @agent: The #StunAgent
+ * @message: The #StunMessage being validated
+ * @username: The username found in the @message
+ * @username_len: The length of @username
+ * @password: The password associated with that username. This argument is a
+ * pointer to a byte array that must be set by the validater function.
+ * @password_len: The length of @password which must also be set by the
+ * validater function.
+ * @user_data: Data to give the function
+ *
+ * This is the prototype for the @validater argument of the stun_agent_validate()
+ * function.
+ * <para> See also: stun_agent_validate() </para>
+ * Returns: %TRUE if the authentication was successful,
+ * %FALSE if the authentication failed
+ */
+func (this *StunAgent) StunMessageIntegrityValidate(message *StunMessage, username string, password string, user_data interface{})
+
+
+
+

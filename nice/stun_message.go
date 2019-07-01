@@ -1,5 +1,10 @@
 package nice
 
+import (
+	"go_srs/srs/utils"
+	"encoding/binary"
+)
+
 /**
  * StunClass:
  * @STUN_REQUEST: A STUN Request message
@@ -252,3 +257,207 @@ const (
  * A type that holds a STUN transaction id.
  */
 type StunTransactionId [STUN_MESSAGE_TRANS_ID_LEN]uint8
+
+/**
+ * StunError:
+ * @STUN_ERROR_TRY_ALTERNATE: The ERROR-CODE value for the
+ * "Try Alternate" error as defined in RFC5389
+ * @STUN_ERROR_BAD_REQUEST: The ERROR-CODE value for the
+ * "Bad Request" error as defined in RFC5389
+ * @STUN_ERROR_UNAUTHORIZED: The ERROR-CODE value for the
+ * "Unauthorized" error as defined in RFC5389
+ * @STUN_ERROR_UNKNOWN_ATTRIBUTE: The ERROR-CODE value for the
+ * "Unknown Attribute" error as defined in RFC5389
+ * @STUN_ERROR_ALLOCATION_MISMATCH:The ERROR-CODE value for the
+ * "Allocation Mismatch" error as defined in TURN draft 12.
+ * Equivalent to the "No Binding" error defined in TURN draft 04.
+ * @STUN_ERROR_STALE_NONCE: The ERROR-CODE value for the
+ * "Stale Nonce" error as defined in RFC5389
+ * @STUN_ERROR_ACT_DST_ALREADY: The ERROR-CODE value for the
+ * "Active Destination Already Set" error as defined in TURN draft 04.
+ * @STUN_ERROR_UNSUPPORTED_FAMILY: The ERROR-CODE value for the
+ * "Address Family not Supported" error as defined in TURN IPV6 Draft 05.
+ * @STUN_ERROR_WRONG_CREDENTIALS: The ERROR-CODE value for the
+ * "Wrong Credentials" error as defined in TURN Draft 12.
+ * @STUN_ERROR_UNSUPPORTED_TRANSPORT:he ERROR-CODE value for the
+ * "Unsupported Transport Protocol" error as defined in TURN Draft 12.
+ * @STUN_ERROR_INVALID_IP: The ERROR-CODE value for the
+ * "Invalid IP Address" error as defined in TURN draft 04.
+ * @STUN_ERROR_INVALID_PORT: The ERROR-CODE value for the
+ * "Invalid Port" error as defined in TURN draft 04.
+ * @STUN_ERROR_OP_TCP_ONLY: The ERROR-CODE value for the
+ * "Operation for TCP Only" error as defined in TURN draft 04.
+ * @STUN_ERROR_CONN_ALREADY: The ERROR-CODE value for the
+ * "Connection Already Exists" error as defined in TURN draft 04.
+ * @STUN_ERROR_ALLOCATION_QUOTA_REACHED: The ERROR-CODE value for the
+ * "Allocation Quota Reached" error as defined in TURN draft 12.
+ * @STUN_ERROR_ROLE_CONFLICT:The ERROR-CODE value for the
+ * "Role Conflict" error as defined in ICE draft 19.
+ * @STUN_ERROR_SERVER_ERROR: The ERROR-CODE value for the
+ * "Server Error" error as defined in RFC5389
+ * @STUN_ERROR_SERVER_CAPACITY: The ERROR-CODE value for the
+ * "Insufficient Capacity" error as defined in TURN draft 04.
+ * @STUN_ERROR_INSUFFICIENT_CAPACITY: The ERROR-CODE value for the
+ * "Insufficient Capacity" error as defined in TURN draft 12.
+ * @STUN_ERROR_MAX: The maximum possible ERROR-CODE value as defined by RFC 5389.
+ *
+ * STUN error codes as defined by various RFCs and drafts
+ */
+/* Should be in sync with stun_strerror() */
+type StunError int
+const (
+	_ StunError 				= 	iota
+	STUN_ERROR_TRY_ALTERNATE	=	300      /* RFC5389 */
+	STUN_ERROR_BAD_REQUEST		=	400      /* RFC5389 */
+	STUN_ERROR_UNAUTHORIZED		=	401      /* RFC5389 */
+	STUN_ERROR_UNKNOWN_ATTRIBUTE=	420    /* RFC5389 */
+	STUN_ERROR_ALLOCATION_MISMATCH=	437   /* TURN-12 */
+	STUN_ERROR_STALE_NONCE		=	438      /* RFC5389 */
+	STUN_ERROR_ACT_DST_ALREADY	=	439    /* TURN-04 */
+	STUN_ERROR_UNSUPPORTED_FAMILY=	440      /* TURN-IPv6-05 */
+	STUN_ERROR_WRONG_CREDENTIALS=	441    /* TURN-12 */
+	STUN_ERROR_UNSUPPORTED_TRANSPORT=442    /* TURN-12 */
+	STUN_ERROR_INVALID_IP		=	443      /* TURN-04 */
+	STUN_ERROR_INVALID_PORT		=	444      /* TURN-04 */
+	STUN_ERROR_OP_TCP_ONLY		=	445      /* TURN-04 */
+	STUN_ERROR_CONN_ALREADY		=	446      /* TURN-04 */
+	STUN_ERROR_ALLOCATION_QUOTA_REACHED=486    /* TURN-12 */
+	STUN_ERROR_ROLE_CONFLICT	=	487      /* ICE-19 */
+	STUN_ERROR_SERVER_ERROR		=	500      /* RFC5389 */
+	STUN_ERROR_SERVER_CAPACITY	=	507    /* TURN-04 */
+	STUN_ERROR_INSUFFICIENT_CAPACITY=508    /* TURN-12 */
+	STUN_ERROR_MAX				=	699
+)
+
+/**
+ * StunMessageReturn:
+ * @STUN_MESSAGE_RETURN_SUCCESS: The operation was successful
+ * @STUN_MESSAGE_RETURN_NOT_FOUND: The attribute was not found
+ * @STUN_MESSAGE_RETURN_INVALID: The argument or data is invalid
+ * @STUN_MESSAGE_RETURN_NOT_ENOUGH_SPACE: There is not enough space in the
+ * message to append data to it, or not enough in an argument to fill it with
+ * the data requested.
+ * @STUN_MESSAGE_RETURN_UNSUPPORTED_ADDRESS: The address in the arguments or in
+ * the STUN message is not supported.
+ *
+ * The return value of most stun_message_* functions.
+ * This enum will report on whether an operation was successful or not
+ * and what error occured if any.
+*/
+type StunMessageReturn int
+const (
+	_ StunMessageReturn 	=	iota
+	STUN_MESSAGE_RETURN_SUCCESS
+	STUN_MESSAGE_RETURN_NOT_FOUND
+	STUN_MESSAGE_RETURN_INVALID
+	STUN_MESSAGE_RETURN_NOT_ENOUGH_SPACE
+	STUN_MESSAGE_RETURN_UNSUPPORTED_ADDRESS
+)
+const STUN_MAX_MESSAGE_SIZE = 65552
+
+/*
+@https://tools.ietf.org/html/rfc5389 page11
+0  1  2  3  4 5 6 7 8 9 0 1 2 3 4 5
+
+	+--+--+-+-+-+-+-+-+-+-+-+-+-+-+
+	|M11 |M |M|M|M|C1|M6|M|M|C0|M|M|M|M0|
+	|11|10|9|8|7|1|6|5|4|0|3|2|1|0|
+	+--+--+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+type StunMessageType struct {
+	class	StunClass
+	method 	StunMethod
+}
+
+func NewStunMessageType(c StunClass, m StunMethod) *StunMessageType {
+	return &StunMessageType{
+		class:c,
+		method:m,
+	}
+}
+
+func (this StunMessageType) Encode() [2]byte {
+	var b [2]byte
+	var c byte
+	c = (byte(this.class) >> 1) | ((byte(this.method) >> 6) & 0x3e)
+	b[0] = c
+	c = ((byte(this.class) << 4) & 0x10) | (byte(this.method) & 0x0F) | ((byte(this.method) << 1) & 0xe0)
+	b[1] = c
+	return b
+}
+
+type StunMessageMagicCookie struct {
+	data 		[4]byte
+}
+
+func NewStunMessageMagicCookie() *StunMessageMagicCookie {
+	//The magic cookie field MUST contain the fixed value 0x2112A442 in
+	//   network byte order
+	d := utils.Int32ToBytes(STUN_MAGIC_COOKIE, binary.BigEndian)
+	m := &StunMessageMagicCookie{}
+	m.data[0] = d[0]
+	m.data[1] = d[1]
+	m.data[2] = d[2]
+	m.data[3] = d[3]
+	return m
+}
+
+type StunMessageHeader struct {
+	messageType		*StunMessageType
+	messageLen		uint16
+}
+
+func NewStunMessageHeader() *StunMessageHeader {
+	
+}
+
+func (this StunMessageHeader) Encode() [4]byte {
+	b := this.messageType.Encode()
+	c := utils.UInt16ToBytes(this.messageLen, binary.BigEndian)
+	var d [4]byte
+	d[0] = b[0]
+	d[1] = b[1]
+	d[2] = c[0]
+	d[3] = c[1]
+	return d
+}
+
+/**
+ * StunMessage:
+ * @agent: The agent that created or validated this message
+ * @buffer: The buffer containing the STUN message
+ * @buffer_len: The length of the buffer (not the size of the message)
+ * @key: The short term credentials key to use for authentication validation
+ * or that was used to finalize this message
+ * @key_len: The length of the associated key
+ * @long_term_key: The long term credential key to use for authentication
+ * validation or that was used to finalize this message
+ * @long_term_valid: Whether or not the #long_term_key variable contains valid
+ * data
+ *
+ * This structure represents a STUN message
+*/
+type StunMessage struct  {
+	agent 			*StunAgent
+
+	messageHeader 	StunMessageHeader
+
+	buffer 			[]byte
+	key 			[]byte
+	long_term_key 	[16]byte
+	long_term_valid bool
+}
+
+/**
+ * stun_message_init:
+ * @msg: The #StunMessage to initializeStunClass
+ * @c: STUN message class (host byte order)
+ * @m: STUN message method (host byte order)
+ * @id: 16-bytes transaction ID
+ *
+ * Initializes a STUN message buffer, with no attributes.
+ * Returns: %TRUE if the initialization was successful
+ */
+func stun_message_init (msg *StunMessage, c StunClass, m StunMethod, id StunTransactionId) bool {
+
+}
