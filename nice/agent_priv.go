@@ -1,6 +1,10 @@
 package nice
 
-import "sync"
+import (
+	"sync"
+	"errors"
+	"net"
+)
 
 /* XXX: starting from ICE ID-18, Ta SHOULD now be set according
  *      to session bandwidth -> this is not yet implemented in NICE */
@@ -61,7 +65,7 @@ type NiceAgent struct {
 	stun_reliable_timeout		uint
 	nomination_mode				NiceNominationMode
 	support_renomination		bool
-	local_addresses				[]NiceAddress /* list of NiceAddresses for local interfaces */
+	local_addresses				[]net.Addr
 	streams						[]*NiceStream
 	next_candidate_id			uint
 	next_stream_id				uint
@@ -160,4 +164,42 @@ func (this *NiceAgent) nice_agent_attach_recv(stream_id uint, component_id uint,
 	this.agent_mutex.Lock()
 	defer this.agent_mutex.Unlock()
 
+	s, c := this.agent_find_component(stream_id, component_id)
+	if s == nil || c == nil {
+		return false
+	}
+
+	c.nice_component_set_io_callback(recv_func, nil, nil)
+	return true
+}
+
+func (this *NiceAgent) nice_agent_gather_candidates(stream_id uint) error {
+	this.agent_mutex.Lock()
+	defer this.agent_mutex.Unlock()
+
+	stream := this.find_stream(stream_id)
+	if stream == nil {
+		return errors.New("could not find the stream")
+	}
+
+	if stream.gathering_started {
+		return nil
+	}
+
+	/* if no local addresses added, generate them ourselves */
+	if this.local_addresses == nil {
+		var err error
+		this.local_addresses, err = nice_interfaces_get_local_ips()
+		if err != nil {
+			return err
+		}
+	}
+
+	for cid := 1; cid < len(stream.components); cid++ {
+		component := this.agent_find_component(stream_id, cid)
+		if component == nil {
+			continue
+		}
+		/* generate a local host candidate for each local address */
+	}
 }

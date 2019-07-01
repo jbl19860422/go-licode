@@ -53,6 +53,7 @@ type NiceComponent struct {
 	incoming_checks		[]*IncomingCheck
 	turn_servers		[]*TurnServer
 	selected_pair		CandidatePair
+	io_callback			NiceAgentRecvFunc   /* function called on io cb */
 }
 
 func NewNiceComponent(agent *NiceAgent, stream *NiceStream, id uint) *NiceComponent {
@@ -64,5 +65,6 @@ func NewNiceComponent(agent *NiceAgent, stream *NiceStream, id uint) *NiceCompon
 }
 
 func (this *NiceComponent) nice_component_set_io_callback(recv_func NiceAgentRecvFunc, user_data interface{}, recv_messages *NiceInputMessage) error {
+	this.io_callback = recv_func
 	return nil
 }
