@@ -107,3 +107,33 @@ func conn_check_add_for_local_candidate (agent *NiceAgent, stream_id uint, compo
 	}
  	return added
 }
+
+func conn_check_add_for_candidate_pair(agent *NiceAgent, stream_id uint, component *NiceComponent, local *NiceCandidate, remote *NiceCandidate) bool {
+	var ret bool = false
+	/* note: do not create pairs where the local candidate is
+ *       a srv-reflexive (ICE 5.7.3. "Pruning the pairs" ID-9) */
+	if (agent.compatibility == NICE_COMPATIBILITY_RFC5245 || agent.compatibility == NICE_COMPATIBILITY_WLM2009 ||
+		agent.compatibility == NICE_COMPATIBILITY_OC2007R2) && local.typ == NICE_CANDIDATE_TYPE_SERVER_REFLEXIVE {
+		return false
+	}
+	/* note: do not create pairs where local candidate has TCP passive transport
+ *       (ice-tcp-13 6.2. "Forming the Check Lists") */
+ 	if local.transport == NICE_CANDIDATE_TRANSPORT_TCP_PASSIVE {
+ 		return false
+	}
+
+	if local.transport == 
+	return ret
+}
+
+/* note: match pairs only if transport and address family are the same */
+if (local->transport == conn_check_match_transport (remote->transport) &&
+local->addr.s.addr.sa_family == remote->addr.s.addr.sa_family) {
+priv_conn_check_add_for_candidate_pair_matched (agent, stream_id, component,
+local, remote, NICE_CHECK_FROZEN);
+ret = TRUE;
+}
+
+return ret;
+}
+
