@@ -1,6 +1,8 @@
 package nice
 
-import "time"
+import (
+	"time"
+)
 
 const NICE_CANDIDATE_PAIR_MAX_FOUNDATION = NICE_CANDIDATE_MAX_FOUNDATION*2
 
@@ -51,5 +53,27 @@ type CandidateCheckPair struct {
 	priority		uint64
 	prflx_priority	uint32
 	stun_transactions	[]*StunTransaction
-};
+}
+
+func ensure_unique_priority(stream *NiceStream, component *NiceComponent, priority uint32) uint32 {
+	if priority == 0 {
+		priority--
+	}
+again:
+	for i := 0; i < len(component.local_candidates); i++ {
+		if component.local_candidates[i].priority == priority {
+			priority--
+			goto again
+		}
+	}
+
+	for i := 0; i < len(stream.conncheck_list); i++ {
+		p := stream.conncheck_list[i]
+		if p.componet_id == component.id && p.prflx_priority == priority {
+			priority--
+			goto again
+		}
+	}
+	return priority
+}
 

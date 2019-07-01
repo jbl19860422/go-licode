@@ -53,6 +53,19 @@ const (
 	NICE_RELAY_TYPE_TURN_TLS
 )
 
+/* Constants for determining candidate priorities */
+const NICE_CANDIDATE_TYPE_PREF_HOST = 120
+const NICE_CANDIDATE_TYPE_PREF_PEER_REFLEXIVE = 110
+const NICE_CANDIDATE_TYPE_PREF_NAT_ASSISTED = 105
+const NICE_CANDIDATE_TYPE_PREF_SERVER_REFLEXIVE = 100
+const NICE_CANDIDATE_TYPE_PREF_RELAYED_UDP = 30
+const NICE_CANDIDATE_TYPE_PREF_RELAYED = 20
+/* Priority preference constants for MS-ICE compatibility */
+const NICE_CANDIDATE_TRANSPORT_MS_PREF_UDP = 15
+const NICE_CANDIDATE_TRANSPORT_MS_PREF_TCP = 6
+const NICE_CANDIDATE_DIRECTION_MS_PREF_PASSIVE = 2
+const NICE_CANDIDATE_DIRECTION_MS_PREF_ACTIVE = 5
+
 /**
  * TurnServer:
  * @ref_count: Reference count for the structure.
@@ -124,4 +137,171 @@ func nice_candidate_equal(c1 *NiceCandidate, c2 *NiceCandidate) bool {
 		return true
 	}
 	return false
+}
+
+func nice_candidate_jingle_priority (candidate *NiceCandidate) uint32 {
+	switch candidate.typ {
+	case NICE_CANDIDATE_TYPE_HOST:
+		return 1000
+	case NICE_CANDIDATE_TYPE_SERVER_REFLEXIVE:
+		return 900
+	case NICE_CANDIDATE_TYPE_PEER_REFLEXIVE:
+		return 900
+	case NICE_CANDIDATE_TYPE_RELAYED:
+		return 500
+	default:
+		return 0
+	}
+}
+
+func nice_candidate_msn_priority(candidate *NiceCandidate) uint32 {
+	switch candidate.typ {
+	case NICE_CANDIDATE_TYPE_HOST:
+		return 830
+	case NICE_CANDIDATE_TYPE_SERVER_REFLEXIVE:
+		return 550
+	case NICE_CANDIDATE_TYPE_PEER_REFLEXIVE:
+		return 550
+	case NICE_CANDIDATE_TYPE_RELAYED:
+		return 450
+	default:
+		return 0
+	}
+}
+
+func nice_candidate_ice_type_preference (candidate *NiceCandidate, reliable bool, nat_assisted bool) uint8 {
+	var type_preference uint8
+
+	switch candidate.typ {
+	case NICE_CANDIDATE_TYPE_HOST:
+		type_preference = NICE_CANDIDATE_TYPE_PREF_HOST
+	case NICE_CANDIDATE_TYPE_PEER_REFLEXIVE:
+		type_preference = NICE_CANDIDATE_TYPE_PREF_PEER_REFLEXIVE
+	case NICE_CANDIDATE_TYPE_SERVER_REFLEXIVE:
+		if nat_assisted {
+			type_preference = NICE_CANDIDATE_TYPE_PREF_NAT_ASSISTED
+		} else {
+			type_preference = NICE_CANDIDATE_TYPE_PREF_SERVER_REFLEXIVE
+		}
+	case NICE_CANDIDATE_TYPE_RELAYED:
+		if candidate.turn.typ == NICE_RELAY_TYPE_TURN_UDP {
+			type_preference = NICE_CANDIDATE_TYPE_PREF_RELAYED_UDP
+		} else {
+			type_preference = NICE_CANDIDATE_TYPE_PREF_RELAYED
+		}
+	default:
+		type_preference = 0
+	}
+
+	if ((reliable && candidate.transport == NICE_CANDIDATE_TRANSPORT_UDP) ||
+		(!reliable && candidate.transport != NICE_CANDIDATE_TRANSPORT_UDP)) {
+		type_preference = type_preference / 2
+	}
+
+	return type_preference
+}
+
+func nice_candidate_ice_priority (candidate *NiceCandidate, reliable bool, nat_assisted bool) uint32 {
+	var type_preference uint8
+	var local_preference uint16
+	type_preference = nice_candidate_ice_type_preference (candidate, reliable, nat_assisted)
+	local_preference = nice_candidate_ice_local_preference (candidate)
+	return nice_candidate_ice_priority_full (type_preference, local_preference, candidate.component_id)
+}
+
+func nice_candidate_ice_local_preference(candidate *NiceCandidate) uint16 {
+	var direction_preference uint
+	switch candidate.transport {
+	case NICE_CANDIDATE_TRANSPORT_TCP_ACTIVE:
+		if candidate.typ == NICE_CANDIDATE_TYPE_SERVER_REFLEXIVE || candidate.typ == NICE_CANDIDATE_TYPE_HOST {
+			direction_preference = 4
+		} else {
+			direction_preference = 6
+		}
+	case NICE_CANDIDATE_TRANSPORT_TCP_PASSIVE:
+		if candidate.typ == NICE_CANDIDATE_TYPE_SERVER_REFLEXIVE || candidate.typ == NICE_CANDIDATE_TYPE_HOST {
+			direction_preference = 2
+		} else {
+			direction_preference = 4
+		}
+	case NICE_CANDIDATE_TRANSPORT_TCP_SO:
+		if candidate.typ == NICE_CANDIDATE_TYPE_SERVER_REFLEXIVE || candidate.typ == NICE_CANDIDATE_TYPE_HOST {
+			direction_preference = 6
+		} else {
+			direction_preference = 2
+		}
+	case NICE_CANDIDATE_TRANSPORT_UDP:
+		return 1
+	}
+	return uint16(nice_candidate_ice_local_preference_full (direction_preference, uint(nice_candidate_ip_local_preference (candidate))))
+}
+func nice_candidate_ice_local_preference_full (direction_preference uint, other_preference uint) uint32 {
+	return uint32(0x2000 * direction_preference + other_preference)
+}
+
+func nice_candidate_ip_local_preference (candidate *NiceCandidate) uint8 {
+	var preference uint8 = 0
+	var ip_string string
+	if candidate.typ == NICE_CANDIDATE_TYPE_HOST {
+		ip_string = candidate.addr.String()
+	} else {
+		ip_string = candidate.base_addr.String()
+	}
+
+	addrs, err := nice_interfaces_get_local_ips()
+	if err != nil {
+		return 0
+	}
+
+	for i := 0; i < len(addrs); i++ {
+		if ip_string != addrs[i].String() {
+			preference++
+			continue
+		}
+		break
+	}
+
+	return preference
+}
+
+func nice_candidate_ms_ice_local_preference_full(transport_preference uint8, direction_preference uint8, other_preference uint8) uint32 {
+	return uint32(0x1000 * uint(transport_preference) + 0x200 * uint(direction_preference) + 0x1 * uint(other_preference))
+}
+
+
+func nice_candidate_ms_ice_local_preference (candidate *NiceCandidate) uint32 {
+	var transport_preference uint8 = 0
+	var direction_preference uint8 = 0
+
+	switch candidate.transport {
+		case NICE_CANDIDATE_TRANSPORT_TCP_SO, NICE_CANDIDATE_TRANSPORT_TCP_ACTIVE:
+			transport_preference = NICE_CANDIDATE_TRANSPORT_MS_PREF_TCP
+			direction_preference = NICE_CANDIDATE_DIRECTION_MS_PREF_ACTIVE
+		case NICE_CANDIDATE_TRANSPORT_TCP_PASSIVE:
+			transport_preference = NICE_CANDIDATE_TRANSPORT_MS_PREF_TCP
+			direction_preference = NICE_CANDIDATE_DIRECTION_MS_PREF_PASSIVE
+		case NICE_CANDIDATE_TRANSPORT_UDP:
+			transport_preference = NICE_CANDIDATE_TRANSPORT_MS_PREF_UDP
+		default:
+			transport_preference = NICE_CANDIDATE_TRANSPORT_MS_PREF_UDP
+	}
+
+	return nice_candidate_ms_ice_local_preference_full(transport_preference,
+		direction_preference, nice_candidate_ip_local_preference (candidate));
+}
+
+func nice_candidate_ms_ice_priority (candidate *NiceCandidate, reliable bool, nat_assisted bool) uint32 {
+	var type_preference uint8
+	var local_preference uint16
+	type_preference = nice_candidate_ice_type_preference(candidate, reliable, nat_assisted)
+	local_preference = uint16(nice_candidate_ms_ice_local_preference (candidate))
+	return nice_candidate_ice_priority_full(type_preference, local_preference, candidate.component_id)
+}
+
+/*
+ * ICE 4.1.2.1. "Recommended Formula" (ID-19):
+ * returns number between 1 and 0x7effffff
+*/
+func nice_candidate_ice_priority_full(type_preference uint8, local_preference uint16, component_id	uint) uint32 {
+	return uint32(0x1000000 * uint(type_preference) + 0x100 * uint(local_preference) + (0x100 - component_id))
 }

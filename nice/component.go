@@ -54,6 +54,9 @@ type NiceComponent struct {
 	turn_servers		[]*TurnServer
 	selected_pair		CandidatePair
 	io_callback			NiceAgentRecvFunc   /* function called on io cb */
+
+	min_port			uint
+	max_port			uint
 }
 
 func NewNiceComponent(agent *NiceAgent, stream *NiceStream, id uint) *NiceComponent {
@@ -61,6 +64,8 @@ func NewNiceComponent(agent *NiceAgent, stream *NiceStream, id uint) *NiceCompon
 		agent:agent,
 		stream:stream,
 		id:id,
+		min_port:0,
+		max_port:65535,
 	}
 }
 

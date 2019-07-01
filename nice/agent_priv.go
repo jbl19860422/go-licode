@@ -74,7 +74,8 @@ type NiceAgent struct {
 	use_ice_trickle				bool
 
 	compatibility				NiceCompatibility	/* property: Compatibility mode */
-
+	use_ice_udp					bool
+	use_ice_tcp					bool
 
 	software_attribute 			string       /* SOFTWARE attribute */
 	reliable					bool         /* property: reliable */
@@ -173,6 +174,24 @@ func (this *NiceAgent) nice_agent_attach_recv(stream_id uint, component_id uint,
 	return true
 }
 
+func (this *NiceAgent) nice_agent_set_port_range(stream_id uint, component_id uint, min_port uint, max_port uint) {
+	this.agent_mutex.Lock()
+	defer this.agent_mutex.Unlock()
+
+	_, c := this.agent_find_component(stream_id, component_id)
+	if c == nil {
+		return
+	}
+	c.min_port = min_port
+	c.max_port = max_port
+}
+
+const ADD_HOST_MIN = 0
+const ADD_HOST_UDP = ADD_HOST_MIN
+const ADD_HOST_TCP_ACTIVE = 1
+const ADD_HOST_TCP_PASSIVE = 2
+const ADD_HOST_MAX = ADD_HOST_TCP_PASSIVE
+
 func (this *NiceAgent) nice_agent_gather_candidates(stream_id uint) error {
 	this.agent_mutex.Lock()
 	defer this.agent_mutex.Unlock()
@@ -196,10 +215,44 @@ func (this *NiceAgent) nice_agent_gather_candidates(stream_id uint) error {
 	}
 
 	for cid := 1; cid < len(stream.components); cid++ {
-		component := this.agent_find_component(stream_id, cid)
+		_, component := this.agent_find_component(stream_id, uint(cid))
 		if component == nil {
 			continue
 		}
 		/* generate a local host candidate for each local address */
+		for i := 0; i < len(this.local_addresses); i++ {
+			for add_type := ADD_HOST_MIN; addr_type <= ADD_HOST_MAX; addr_type++ {
+				var transport NiceCandidateTransport
+				var current_port uint
+				var start_port	uint
+				if this.use_ice_udp == false && add_type == ADD_HOST_UDP {
+					continue
+				}
+
+				if this.use_ice_tcp == false && add_type != ADD_HOST_UDP {
+					continue
+				}
+
+				switch add_type {
+				case ADD_HOST_UDP:
+					transport = NICE_CANDIDATE_TRANSPORT_UDP
+				case ADD_HOST_TCP_ACTIVE:
+					transport = NICE_CANDIDATE_TRANSPORT_TCP_ACTIVE
+				case ADD_HOST_TCP_PASSIVE:
+					transport = NICE_CANDIDATE_TRANSPORT_TCP_PASSIVE
+				default:
+					transport = NICE_CANDIDATE_TRANSPORT_UDP
+				}
+
+				start_port = component.min_port
+				if component.min_port != 0 {
+					start_port = this.rng.rng_generate_int(component.min_port, component.max_port)
+				}
+
+				current_port = start_port
+
+
+			}
+		}
 	}
 }
