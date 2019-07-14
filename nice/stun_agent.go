@@ -194,14 +194,5 @@ func (this *StunAgent) StunMessageIntegrityValidate(message *StunMessage,
 		return true
 }
 
-func (this *StunAgent) nice_agent_add_stream(n_components uint32) error {
-	if n_components <= 0 {
-		return nil
-	}
-
-	stream := NewStream
-}
-
-
 
 

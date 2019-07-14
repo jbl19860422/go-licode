@@ -62,3 +62,7 @@ func NewNiceComponent(agent *NiceAgent, stream *NiceStream, id uint) *NiceCompon
 		id:id,
 	}
 }
+
+func (this *NiceComponent) nice_component_set_io_callback(recv_func NiceAgentRecvFunc, user_data interface{}, recv_messages *NiceInputMessage) error {
+	return nil
+}

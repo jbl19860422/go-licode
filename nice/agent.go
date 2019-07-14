@@ -230,21 +230,6 @@ const (
 )
 
 /**
- * NiceAgentRecvFunc:
- * @agent: The #NiceAgent Object
- * @stream_id: The id of the stream
- * @component_id: The id of the component of the stream
- *        which received the data
- * @len: The length of the data
- * @buf: The buffer containing the data received
- * @user_data: The user data set in nice_agent_attach_recv()
- *
- * Callback function when data is received on a component
- *
-*/
-type NiceAgentRecvFunc func(agent *NiceAgent, stream_id uint, component_id uint,buf []byte, user_data []byte)
-
-/**
  * nice_agent_new:
  * @ctx: The Glib Mainloop Context to use for timers
  * @compat: The compatibility mode of the agent
