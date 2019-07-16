@@ -4,7 +4,6 @@ import (
 	"go_srs/srs/utils"
 	"encoding/binary"
 	"crypto/rand"
-	"errors"
 )
 
 /**
@@ -36,10 +35,25 @@ type StunMessageAttribute interface {
 /*
  * tlv
  */
-type StunMessageAttr struct {
+type StunAttrHeader struct {
 	typ 		StunAttributeType
-	len 		uint32
-	value 		[]byte
+	len 		uint16
+}
+
+type StunAttrValue interface {
+	Encode(stream *DataStream) error
+	Decode(stream *DataStream) error
+}
+
+type StunAttr struct {
+	header 	StunAttrHeader
+	value 	StunAttrValue
+	padding []byte
+}
+
+func (this StunAttrHeader) Encode(stream *DataStream) {
+	stream.WriteUInt16(uint16(this.typ), binary.BigEndian)
+	stream.WriteUInt16(this.len, binary.BigEndian)
 }
 /**
  * StunMethod:
@@ -184,7 +198,7 @@ const (
  */
 /* Should be in sync with stun_is_unknown() */
 
-type StunAttributeType int32
+type StunAttributeType uint16
 const (
 	_ StunAttributeType = iota
 	STUN_ATTRIBUTE_MAPPED_ADDRESS	=	0x0001    /* RFC5389 */
@@ -484,7 +498,7 @@ type StunMessage struct  {
 	agent 			*StunAgent
 	messageHeader 	StunMessageHeader
 	magicCookie		*StunMessageMagicCookie
-	attrs			[]StunMessageAttribute
+	attrs			[]StunAttr
 
 	buffer 			[]byte
 	key 			[]byte

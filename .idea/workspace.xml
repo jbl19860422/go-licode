@@ -2,9 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a6e007e7-da56-4993-a33d-c777454aed98" name="Default" comment="">
-      <change afterPath="$PROJECT_DIR$/nice/config.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/nice/mapped_address_attr.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/nice/xor_mapped_address_attr.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/go-licode.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/go-licode.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
@@ -19,10 +16,12 @@
       <change beforePath="$PROJECT_DIR$/nice/bind.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/bind.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nice/candidate.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/candidate.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nice/component.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/component.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/nice/config.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/config.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nice/conn_check.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/conn_check.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nice/constants.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/constants.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nice/discovery.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/discovery.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nice/interface.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/interface.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/nice/mapped_address_attr.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/mapped_address_attr.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nice/random.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/random.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nice/socket.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/socket.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nice/stream.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/stream.go" afterDir="false" />
@@ -33,6 +32,7 @@
       <change beforePath="$PROJECT_DIR$/nice/timer.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/timer.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nice/udp_bsd.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/udp_bsd.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/nice/utils.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/utils.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/nice/xor_mapped_address_attr.go" beforeDir="false" afterPath="$PROJECT_DIR$/nice/xor_mapped_address_attr.go" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -79,11 +79,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="stun_message.go" pinned="false" current-in-tab="false">
+      <file leaf-file-name="stun_message.go" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/nice/stun_message.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="300">
-              <caret line="424" column="5" selection-start-line="424" selection-start-column="5" selection-end-line="424" selection-end-column="5" />
+            <state relative-caret-position="540">
+              <caret line="501" lean-forward="true" selection-start-line="501" selection-end-line="501" />
               <folding>
                 <element signature="e#14#63#0" expanded="true" />
               </folding>
@@ -91,11 +91,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="xor_mapped_address_attr.go" pinned="false" current-in-tab="true">
+      <file leaf-file-name="xor_mapped_address_attr.go" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/nice/xor_mapped_address_attr.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="450">
-              <caret line="52" column="45" lean-forward="true" selection-start-line="52" selection-start-column="45" selection-end-line="52" selection-end-column="45" />
+            <state relative-caret-position="1440">
+              <caret line="48" column="44" lean-forward="true" selection-start-line="48" selection-start-column="44" selection-end-line="48" selection-end-column="44" />
               <folding>
                 <element signature="e#14#53#0" expanded="true" />
               </folding>
@@ -106,8 +106,8 @@
       <file leaf-file-name="mapped_address_attr.go" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/nice/mapped_address_attr.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="600">
-              <caret line="35" column="14" lean-forward="true" selection-start-line="35" selection-start-column="14" selection-end-line="35" selection-end-column="14" />
+            <state relative-caret-position="466">
+              <caret line="18" column="26" lean-forward="true" selection-start-line="18" selection-start-column="26" selection-end-line="18" selection-end-column="26" />
               <folding>
                 <element signature="e#14#53#0" expanded="true" />
               </folding>
@@ -208,10 +208,10 @@
         <option value="$PROJECT_DIR$/nice/stunhmac.go" />
         <option value="$PROJECT_DIR$/nice/stun_agent.go" />
         <option value="$PROJECT_DIR$/nice/config.go" />
-        <option value="$PROJECT_DIR$/nice/stun_message.go" />
-        <option value="$PROJECT_DIR$/nice/mapped_address_attr.go" />
         <option value="$PROJECT_DIR$/nice/utils.go" />
         <option value="$PROJECT_DIR$/nice/xor_mapped_address_attr.go" />
+        <option value="$PROJECT_DIR$/nice/mapped_address_attr.go" />
+        <option value="$PROJECT_DIR$/nice/stun_message.go" />
       </list>
     </option>
   </component>
@@ -614,30 +614,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/nice/mapped_address_attr.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="600">
-          <caret line="35" column="14" lean-forward="true" selection-start-line="35" selection-start-column="14" selection-end-line="35" selection-end-column="14" />
-          <folding>
-            <element signature="e#14#53#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/nice/stunhmac.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="30">
           <caret line="1" lean-forward="true" selection-start-line="1" selection-end-line="1" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/nice/stun_message.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="300">
-          <caret line="424" column="5" selection-start-line="424" selection-start-column="5" selection-end-line="424" selection-end-column="5" />
-          <folding>
-            <element signature="e#14#63#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -653,10 +633,30 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/nice/xor_mapped_address_attr.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="450">
-          <caret line="52" column="45" lean-forward="true" selection-start-line="52" selection-start-column="45" selection-end-line="52" selection-end-column="45" />
+        <state relative-caret-position="1440">
+          <caret line="48" column="44" lean-forward="true" selection-start-line="48" selection-start-column="44" selection-end-line="48" selection-end-column="44" />
           <folding>
             <element signature="e#14#53#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/nice/mapped_address_attr.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="466">
+          <caret line="18" column="26" lean-forward="true" selection-start-line="18" selection-start-column="26" selection-end-line="18" selection-end-column="26" />
+          <folding>
+            <element signature="e#14#53#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/nice/stun_message.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="540">
+          <caret line="501" lean-forward="true" selection-start-line="501" selection-end-line="501" />
+          <folding>
+            <element signature="e#14#63#0" expanded="true" />
           </folding>
         </state>
       </provider>

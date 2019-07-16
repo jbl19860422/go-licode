@@ -13,14 +13,20 @@ const (
 )
 
 type StunMappedAddressAttr struct {
+	header 			StunAttrHeader
 	zero 			byte
 	family			MAPPED_ADDRESS_FAMILY
 	port 			uint16
 	ip 				[]byte	//If the address family is IPv6, the address MUST be 128 bits,All fields must be in network byte order
+	padding 		[]byte
 }
 
 func NewStunMappedAddressAttr(f MAPPED_ADDRESS_FAMILY, p uint16, ip []byte) *StunMappedAddressAttr {
 	s := &StunMappedAddressAttr{
+		header:StunAttrHeader{
+			typ:STUN_ATTRIBUTE_MAPPED_ADDRESS,
+			len:0,
+		},
 		zero:0x00,
 		family:f,
 		port:p,
@@ -30,6 +36,7 @@ func NewStunMappedAddressAttr(f MAPPED_ADDRESS_FAMILY, p uint16, ip []byte) *Stu
 }
 
 func (this StunMappedAddressAttr) Encode(stream *DataStream) error {
+	this.header.Encode(stream)
 	stream.WriteByte(byte(this.family))
 	stream.WriteUInt16(this.port, binary.BigEndian)
 	stream.WriteBytes(this.ip)
