@@ -243,9 +243,9 @@ func nice_candidate_ip_local_preference (candidate *NiceCandidate) uint8 {
 	var preference uint8 = 0
 	var ip_string string
 	if candidate.typ == NICE_CANDIDATE_TYPE_HOST {
-		ip_string = candidate.addr.String()
+		ip_string = candidate.addr.ip
 	} else {
-		ip_string = candidate.base_addr.String()
+		ip_string = candidate.base_addr.ip
 	}
 
 	addrs, err := nice_interfaces_get_local_ips()
@@ -254,7 +254,7 @@ func nice_candidate_ip_local_preference (candidate *NiceCandidate) uint8 {
 	}
 
 	for i := 0; i < len(addrs); i++ {
-		if ip_string != addrs[i].String() {
+		if ip_string != addrs[i].ip {
 			preference++
 			continue
 		}
@@ -335,5 +335,22 @@ func priv_assign_foundation (agent *NiceAgent, candidate *NiceCandidate) {
 			}
 		}
 	}
+}
+
+/*
+ * Calculates the pair priority as specified in ICE
+ * sect 5.7.2. "Computing Pair Priority and Ordering Pairs" (ID-19).
+ */
+func nice_candidate_pair_priority (o_prio uint32, a_prio uint32) uint64 {
+	max := MaxUInt32(o_prio, a_prio)
+	min := MinUInt32(o_prio, a_prio)
+	var one uint32 = 0
+	if o_prio > a_prio {
+		one = 1
+	}
+
+	var o uint64 = 1
+	var tw uint64 = 32
+	return uint64(uint32(o << tw) * min + 2 * max + one)
 }
 

@@ -194,5 +194,16 @@ func (this *StunAgent) StunMessageIntegrityValidate(message *StunMessage,
 		return true
 }
 
+func stun_agent_init(agent *StunAgent, compatibility StunCompatibility, usage_flags StunAgentUsageFlags) {
+	// todo
+	// agent->known_attributes = (uint16_t *) known_attributes;
+	agent.compatibility = compatibility
+	agent.usage_flags = usage_flags
+	agent.software_attribute = ""
+	agent.ms_ice2_send_legacy_connchecks = compatibility == STUN_COMPATIBILITY_MSICE2
 
+	for i := 0; i < STUN_AGENT_MAX_SAVED_IDS; i++ {
+		agent.sent_ids[i].valid = false
+	}
+}
 

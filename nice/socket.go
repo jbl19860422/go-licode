@@ -33,4 +33,7 @@ type NiceSockInterface interface {
 	close()
 }
 
+func EqualFamily(a NiceAddress, b NiceAddress) bool {
+	return a.family == b.family
+}
 

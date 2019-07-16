@@ -1,19 +1,29 @@
 package nice
 
-import "net"
+import (
+	"net"
+	"fmt"
+)
 
 type UdpBsdSocket struct {
-	local_addr	*NiceAddress
+	local_addr	NiceAddress
 	conn		*net.UDPConn
 }
 
-func NewUdpBsdSocket(addr *NiceAddress) *UdpBsdSocket {
+func NewUdpBsdSocket(addr NiceAddress) *UdpBsdSocket {
 	s := &UdpBsdSocket{}
 	s.local_addr = addr
+	var err error
+	fmt.Println("port=", addr.port)
+	s.conn, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP(addr.ip), Port: addr.port})
+	if err != nil {
+		//fmt.Println("NewUdpBsdSocket port=", addr.port, " error")
+		return nil
+	}
 	return s
 }
 
-func nice_udp_bsd_socket_new(addr *NiceAddress) *UdpBsdSocket {
+func nice_udp_bsd_socket_new(addr NiceAddress) *UdpBsdSocket {
 	return NewUdpBsdSocket(addr)
 }
 

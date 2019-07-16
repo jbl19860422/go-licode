@@ -244,3 +244,59 @@ func nice_agent_new(compat NiceCompatibility ) *NiceAgent {
 	}
 }
 
+func (this *NiceAgent) agent_candidate_pair_priority (local *NiceCandidate, remote *NiceCandidate) uint64 {
+	if this.controlling_mode {
+		return nice_candidate_pair_priority (local.priority, remote.priority)
+	} else {
+		return nice_candidate_pair_priority (remote.priority, local.priority)
+	}
+}
+
+func (this *NiceAgent) agent_signal_component_state_change(stream_id uint, component_id uint, new_state NiceComponentState) {
+	var old_state NiceComponentState
+	var component *NiceComponent
+
+	s, c := this.agent_find_component(stream_id, component_id)
+	if s == nil || c == nil {
+		return
+	}
+
+	/* Validate the state change. */
+	old_state = component.state
+	if new_state == old_state {
+		return
+	}
+
+	component.state = new_state
+	if this.reliable {
+		// todo
+		// process_queued_tcp_packets (agent, stream, component);
+	}
+
+	if this.componet_state_change_cb != nil {
+		this.componet_state_change_cb(this, stream_id, component_id, uint(new_state), nil)
+	}
+}
+
+func priv_add_new_candidate_discovery_stun(agent *NiceAgent, nicesock NiceSockInterface, server NiceAddress, stream *NiceStream, component_id uint) {
+	cdisco := NewCandidateDiscovery()
+	//todo
+	cdisco.typ = NICE_CANDIDATE_TYPE_SERVER_REFLEXIVE
+	cdisco.nicesock = nicesock
+	cdisco.server = server
+	cdisco.stream_id = stream.id
+	cdisco.component_id = component_id
+
+	var usage_flags StunAgentUsageFlags
+	if agent.compatibility == NICE_COMPATIBILITY_OC2007 || agent.compatibility == NICE_COMPATIBILITY_OC2007R2 {
+		usage_flags = STUN_AGENT_USAGE_NO_ALIGNED_ATTRIBUTES
+	}
+	stun_agent_init(&cdisco.stun_agent, STUN_COMPATIBILITY_RFC3489, usage_flags)
+	agent.discovery_list = append(agent.discovery_list, cdisco)
+	agent.discovery_unsched_items++
+}
+
+func agent_signal_new_candidate(agent *NiceAgent, candidate *NiceCandidate) {
+	//todo
+}
+

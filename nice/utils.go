@@ -25,6 +25,7 @@ package nice
 import (
 	"encoding/binary"
 	"bytes"
+	"net"
 )
 
 func numberToBytes(data interface{}, order binary.ByteOrder) []byte {
@@ -120,4 +121,31 @@ func BytesToFloat64(data []byte, order binary.ByteOrder) (float64, error) {
 	var v float64 = 0
 	err := bytesToNumber(data, order, &v)
 	return v, err
+}
+
+func MaxUInt32(a uint32, b uint32) uint32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func MinUInt32(a uint32, b uint32) uint32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func SliceInsert(s []interface{}, index int, value interface{}) []interface{} {
+	rear := append([]interface{}{}, s[index:]...)
+	return append(append(s[:index], value), rear...)
+}
+
+func UdpAddrPortUsable(ip string, port int) bool {
+	_, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP(ip), Port: port})
+	if err != nil {
+		return false
+	}
+	return true
 }

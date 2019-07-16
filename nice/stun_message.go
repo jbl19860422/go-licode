@@ -259,7 +259,7 @@ const (
 type StunTransactionId [STUN_MESSAGE_TRANS_ID_LEN]byte
 
 func NewStunTransactionId() *StunTransactionId {
-
+	return &StunTransactionId{}
 }
 
 func (this StunTransactionId) Encode() [STUN_MESSAGE_TRANS_ID_LEN]byte {
@@ -394,13 +394,13 @@ func (this StunMessageType) Encode() [2]byte {
 	return b
 }
 
-type StunMessageMagicCookie [STUN_MAGIC_COOKIE_LEN]byte
+type StunMessageMagicCookie []byte
 
 func NewStunMessageMagicCookie() *StunMessageMagicCookie {
 	//The magic cookie field MUST contain the fixed value 0x2112A442 in
 	//   network byte order
 	d := utils.Int32ToBytes(STUN_MAGIC_COOKIE, binary.BigEndian)
-	m := StunMessageMagicCookie{}
+	var m StunMessageMagicCookie = make([]byte, 4)
 	m[0] = d[0]
 	m[1] = d[1]
 	m[2] = d[2]
@@ -408,7 +408,7 @@ func NewStunMessageMagicCookie() *StunMessageMagicCookie {
 	return &m
 }
 
-func (s StunMessageMagicCookie) Encode() [4]byte {
+func (s StunMessageMagicCookie) Encode() []byte {
 	return s
 }
 
@@ -436,7 +436,8 @@ func (this StunMessageHeader) Encode() []byte {
 	c := utils.UInt16ToBytes(this.messageLen, binary.BigEndian)
 	//message length
 	data = append(data, c...)
-	data = append(data, []byte(this.magicCookie.Encode()[0:4])...)
+	data = append(data, this.magicCookie.Encode()...)
+	return data
 }
 
 /**
@@ -476,5 +477,5 @@ type StunMessage struct  {
  * Returns: %TRUE if the initialization was successful
  */
 func stun_message_init (msg *StunMessage, c StunClass, m StunMethod, id StunTransactionId) bool {
-
+	return true
 }

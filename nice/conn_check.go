@@ -2,6 +2,7 @@ package nice
 
 import (
 	"time"
+	"fmt"
 )
 
 const NICE_CANDIDATE_PAIR_MAX_FOUNDATION = NICE_CANDIDATE_MAX_FOUNDATION*2
@@ -37,11 +38,11 @@ type StunTransaction struct {
 
 type CandidateCheckPair struct {
 	stream_id 		uint
-	componet_id 	uint
+	component_id 	uint
 	local 			*NiceCandidate
 	remote 			*NiceCandidate
 	sockptr			NiceSockInterface
-	foundation 		[NICE_CANDIDATE_PAIR_MAX_FOUNDATION]byte
+	foundation 		[]byte
 	state 			NiceCheckState
 	nominated		bool
 	valid 			bool
@@ -53,6 +54,10 @@ type CandidateCheckPair struct {
 	priority		uint64
 	prflx_priority	uint32
 	stun_transactions	[]*StunTransaction
+}
+
+func NewCandidateCheckPair() *CandidateCheckPair {
+	return &CandidateCheckPair{}
 }
 
 func ensure_unique_priority(stream *NiceStream, component *NiceComponent, priority uint32) uint32 {
@@ -69,7 +74,7 @@ again:
 
 	for i := 0; i < len(stream.conncheck_list); i++ {
 		p := stream.conncheck_list[i]
-		if p.componet_id == component.id && p.prflx_priority == priority {
+		if p.component_id == component.id && p.prflx_priority == priority {
 			priority--
 			goto again
 		}
@@ -108,6 +113,19 @@ func conn_check_add_for_local_candidate (agent *NiceAgent, stream_id uint, compo
  	return added
 }
 
+func conn_check_match_transport(transport NiceCandidateTransport) NiceCandidateTransport {
+	switch transport {
+		case NICE_CANDIDATE_TRANSPORT_TCP_ACTIVE:
+			return NICE_CANDIDATE_TRANSPORT_TCP_PASSIVE
+		case NICE_CANDIDATE_TRANSPORT_TCP_PASSIVE:
+			return NICE_CANDIDATE_TRANSPORT_TCP_ACTIVE
+		case NICE_CANDIDATE_TRANSPORT_TCP_SO, NICE_CANDIDATE_TRANSPORT_UDP:
+			return transport
+		default:
+			return transport
+	}
+}
+
 func conn_check_add_for_candidate_pair(agent *NiceAgent, stream_id uint, component *NiceComponent, local *NiceCandidate, remote *NiceCandidate) bool {
 	var ret bool = false
 	/* note: do not create pairs where the local candidate is
@@ -122,18 +140,129 @@ func conn_check_add_for_candidate_pair(agent *NiceAgent, stream_id uint, compone
  		return false
 	}
 
-	if local.transport == 
+	if local.transport == conn_check_match_transport(remote.transport) && EqualFamily(local.addr, remote.addr) {
+
+	}
 	return ret
 }
 
-/* note: match pairs only if transport and address family are the same */
-if (local->transport == conn_check_match_transport (remote->transport) &&
-local->addr.s.addr.sa_family == remote->addr.s.addr.sa_family) {
-priv_conn_check_add_for_candidate_pair_matched (agent, stream_id, component,
-local, remote, NICE_CHECK_FROZEN);
-ret = TRUE;
+func priv_conn_check_add_for_candidate_pair_matched(agent *NiceAgent, stream_id uint, component *NiceComponent, local *NiceCandidate, remote *NiceCandidate, initial_state NiceCheckState) *CandidateCheckPair {
+	var pair *CandidateCheckPair
+
+	pair = priv_add_new_check_pair (agent, stream_id, component, local, remote, initial_state)
+	if component.state == NICE_COMPONENT_STATE_CONNECTED || component.state == NICE_COMPONENT_STATE_READY {
+		agent.agent_signal_component_state_change(stream_id, component.id, NICE_COMPONENT_STATE_CONNECTED)
+	} else {
+		agent.agent_signal_component_state_change(stream_id, component.id, NICE_COMPONENT_STATE_CONNECTING)
+	}
+
+	return pair
 }
 
-return ret;
+func InsertSorted(list []*CandidateCheckPair, pair *CandidateCheckPair) []*CandidateCheckPair {
+	var i int = 0
+	for i = 0; i < len(list); i++ {
+		if pair.priority >= list[i].priority {
+			break
+		}
+	}
+
+	rear := append([]*CandidateCheckPair{}, list[i:]...)
+	return append(append(list[:i], pair), rear...)
 }
+/*
+ * Creates a new connectivity check pair and adds it to
+ * the agent's list of checks.
+ */
+func priv_add_new_check_pair(agent *NiceAgent,stream_id uint, component *NiceComponent, local *NiceCandidate, remote *NiceCandidate, initial_state NiceCheckState) *CandidateCheckPair {
+	var stream *NiceStream
+	var pair *CandidateCheckPair
+
+	stream = agent.find_stream(stream_id)
+	pair = NewCandidateCheckPair()
+
+	pair.stream_id = stream_id
+	pair.component_id = component.id
+	pair.local = local
+	pair.remote = remote
+	/* note: we use the remote sockptr only in the case
+	 * of TCP transport
+	*/
+	if local.transport ==  NICE_CANDIDATE_TRANSPORT_TCP_PASSIVE && remote.typ == NICE_CANDIDATE_TYPE_PEER_REFLEXIVE {
+		pair.sockptr = remote.sockptr
+	} else {
+		pair.sockptr = local.sockptr
+	}
+	pair.foundation = []byte(string(local.foundation) + ":" + string(remote.foundation))
+	pair.priority = agent.agent_candidate_pair_priority(local, remote)
+
+	pair.state = initial_state
+	fmt.Println("agent creating a new pair")
+	pair.prflx_priority = ensure_unique_prflx_priority (stream, component, local.priority, peer_reflexive_candidate_priority (agent, local))
+
+	stream.conncheck_list = InsertSorted(stream.conncheck_list, pair)
+
+	/* implement the hard upper limit for number of
+	   checks (see sect 5.7.3 ICE ID-19): */
+	if (agent.compatibility == NICE_COMPATIBILITY_RFC5245) {
+		//todo limit conncheck list
+		//stream.conncheck_list = priv_limit_conn_check_list_size (agent, stream.conncheck_list, agent.max_conn_checks)
+	}
+
+	return pair
+}
+
+func peer_reflexive_candidate_priority(agent *NiceAgent, local_candidate *NiceCandidate) uint32  {
+	var candidate_priority *NiceCandidate = nice_candidate_new (NICE_CANDIDATE_TYPE_PEER_REFLEXIVE)
+	var priority uint32
+
+	candidate_priority.transport = local_candidate.transport
+	candidate_priority.component_id = local_candidate.component_id
+	candidate_priority.base_addr = local_candidate.addr
+
+	if agent.compatibility == NICE_COMPATIBILITY_GOOGLE {
+		priority = nice_candidate_jingle_priority (candidate_priority)
+	} else if agent.compatibility == NICE_COMPATIBILITY_MSN || agent.compatibility == NICE_COMPATIBILITY_OC2007 {
+		priority = nice_candidate_msn_priority (candidate_priority)
+	} else if agent.compatibility == NICE_COMPATIBILITY_OC2007R2 {
+		priority = nice_candidate_ms_ice_priority (candidate_priority, agent.reliable, false)
+	} else {
+		priority = nice_candidate_ice_priority (candidate_priority, agent.reliable, false)
+	}
+
+	return priority
+}
+
+
+func ensure_unique_prflx_priority(stream *NiceStream, component *NiceComponent, local_priority uint32, prflx_priority uint32) uint32 {
+	/* First, ensure we provide the same value for pairs having
+	 * the same local candidate, ie the same local candidate priority
+	 * for the sake of coherency with the stun server behaviour that
+	 * stores a unique priority value per remote candidate, from the
+	 * first stun request it receives (it depends on the kind of NAT
+	 * typically, but for NAT that preserves the binding this is required).
+	 */
+	 for i := 0; i < len(stream.conncheck_list); i++ {
+		p := stream.conncheck_list[i]
+		if p.component_id == component.id && p.local.priority == local_priority {
+			return p.prflx_priority
+		}
+	 }
+
+	 /* Second, ensure uniqueness across all other prflx_priority values */
+again:
+	if prflx_priority == 0 {
+		prflx_priority--
+	}
+
+	for i := 0; i < len(stream.conncheck_list); i++ {
+		p := stream.conncheck_list[i]
+		if p.component_id == component.id && p.prflx_priority == prflx_priority {
+			prflx_priority--
+			goto again
+		}
+	}
+	return prflx_priority
+}
+
 

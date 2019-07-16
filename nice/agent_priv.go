@@ -4,6 +4,9 @@ import (
 	"sync"
 	"errors"
 	"net"
+	"strconv"
+	"fmt"
+	"time"
 )
 
 /* XXX: starting from ICE ID-18, Ta SHOULD now be set according
@@ -65,7 +68,7 @@ type NiceAgent struct {
 	stun_reliable_timeout		uint
 	nomination_mode				NiceNominationMode
 	support_renomination		bool
-	local_addresses				[]net.Addr
+	local_addresses				[]NiceAddress
 	streams						[]*NiceStream
 	next_candidate_id			uint
 	next_stream_id				uint
@@ -76,6 +79,10 @@ type NiceAgent struct {
 	compatibility				NiceCompatibility	/* property: Compatibility mode */
 	use_ice_udp					bool
 	use_ice_tcp					bool
+
+	timer 						*time.Timer
+
+	discovery_unsched_items		int
 
 	software_attribute 			string       /* SOFTWARE attribute */
 	reliable					bool         /* property: reliable */
@@ -93,6 +100,8 @@ type NiceAgent struct {
 func NewNiceAgent() *NiceAgent {
 	a := &NiceAgent{}
 	a.rng = NewNiceRNG()
+	a.use_ice_udp = true
+	a.full_mode = true	//default full_mode
 	return a
 }
 
@@ -108,7 +117,7 @@ func (this *NiceAgent) SetControllingMode(mode bool) {
 	this.controlling_mode = mode
 }
 
-func (this *NiceAgent) nice_agent_add_stream(n_components uint) uint {
+func (this *NiceAgent) Nice_agent_add_stream(n_components uint) uint {
 	if n_components <= 0 {
 		return 0
 	}
@@ -174,7 +183,7 @@ func (this *NiceAgent) nice_agent_attach_recv(stream_id uint, component_id uint,
 	return true
 }
 
-func (this *NiceAgent) nice_agent_set_port_range(stream_id uint, component_id uint, min_port uint, max_port uint) {
+func (this *NiceAgent) nice_agent_set_port_range(stream_id uint, component_id uint, min_port int, max_port int) {
 	this.agent_mutex.Lock()
 	defer this.agent_mutex.Unlock()
 
@@ -190,9 +199,9 @@ const ADD_HOST_MIN = 0
 const ADD_HOST_UDP = ADD_HOST_MIN
 const ADD_HOST_TCP_ACTIVE = 1
 const ADD_HOST_TCP_PASSIVE = 2
-const ADD_HOST_MAX = ADD_HOST_TCP_PASSIVE
+const ADD_HOST_MAX = ADD_HOST_UDP
 
-func (this *NiceAgent) nice_agent_gather_candidates(stream_id uint) error {
+func (this *NiceAgent) Nice_agent_gather_candidates(stream_id uint) error {
 	this.agent_mutex.Lock()
 	defer this.agent_mutex.Unlock()
 
@@ -209,22 +218,30 @@ func (this *NiceAgent) nice_agent_gather_candidates(stream_id uint) error {
 	if this.local_addresses == nil {
 		var err error
 		this.local_addresses, err = nice_interfaces_get_local_ips()
+		//for i := 0; i < len(this.local_addresses); i++ {
+		//	fmt.Println("addr=", this.local_addresses[i].ip)
+		//}
+		//fmt.Println("this.local_addresses=", this.local_addresses)
 		if err != nil {
 			return err
 		}
 	}
 
-	for cid := 1; cid < len(stream.components); cid++ {
+	for cid := 1; cid < len(stream.components) + 1; cid++ {
 		_, component := this.agent_find_component(stream_id, uint(cid))
 		if component == nil {
+			fmt.Println("nilnil")
 			continue
 		}
+		var found_local_address bool = false
 		/* generate a local host candidate for each local address */
 		for i := 0; i < len(this.local_addresses); i++ {
 			for add_type := ADD_HOST_MIN; add_type <= ADD_HOST_MAX; add_type++ {
+				addr := this.local_addresses[i]
 				var transport NiceCandidateTransport
-				var current_port uint
-				var start_port	uint
+				var current_port int
+				var start_port	int
+				fmt.Println("add_type=", add_type)
 				if this.use_ice_udp == false && add_type == ADD_HOST_UDP {
 					continue
 				}
@@ -246,13 +263,81 @@ func (this *NiceAgent) nice_agent_gather_candidates(stream_id uint) error {
 
 				start_port = component.min_port
 				if component.min_port != 0 {
-					start_port = this.rng.rng_generate_int(component.min_port, component.max_port)
+					start_port = int(this.rng.rng_generate_int(uint(component.min_port), uint(component.max_port)))
 				}
 
 				current_port = start_port
+				addr.port = current_port
+				var host_candidate *NiceCandidate
+				var res HostCandidateResult = HOST_CANDIDATE_CANT_CREATE_SOCKET
+				for res == HOST_CANDIDATE_CANT_CREATE_SOCKET {
+					host_candidate, res = this.discovery_add_local_host_candidate(stream.id, uint(cid), addr, transport)
+					if current_port > 0 {
+						current_port++
+					}
 
+					if current_port > component.max_port {
+						current_port = component.min_port
+					}
 
+					if current_port == 0 || current_port == start_port {
+						break
+					}
+				}
+
+				if res == HOST_CANDIDATE_REDUNDANT {
+					continue
+				} else if res == HOST_CANDIDATE_FAILED {
+					continue
+				} else if res == HOST_CANDIDATE_CANT_CREATE_SOCKET {
+					continue
+				}
+
+				found_local_address = true
+				// todo
+				// nice_address_set_port(addr, 0)
+				if this.full_mode && this.stun_server_ip != "" && !this.force_relay && transport == NICE_CANDIDATE_TRANSPORT_UDP {
+					s, err := net.ResolveUDPAddr("udp", this.stun_server_ip+":" + strconv.Itoa(int(this.stun_port)))
+					if err != nil {
+						continue
+					}
+
+					var stun_server NiceAddress
+					stun_server.port = s.Port
+					stun_server.ip = s.IP.String()
+					stun_server.family = "ip4"
+					stun_server.port = int(this.stun_port)
+					if EqualFamily(host_candidate.addr, stun_server) {
+						priv_add_new_candidate_discovery_stun(this, host_candidate.sockptr, stun_server, stream, uint(cid))
+					}
+				}
+				// todo discovery turn
 			}
 		}
+
+		if !found_local_address {
+			return errors.New("not find local address")
+		}
 	}
+
+	stream.gathering = true
+	stream.gathering_started = true
+	/* Only signal the new candidates after we're sure that the gathering was
+   * succesfful. But before sending gathering-done */
+	for cid := 1; cid <= len(stream.components); cid++ {
+		component := stream.find_component_by_id(uint(cid))
+		if component == nil {
+			continue
+		}
+
+		for i := len(component.local_candidates) - 1; i >= 0; i-- {
+			candidate := component.local_candidates[i]
+			if this.force_relay && candidate.typ != NICE_CANDIDATE_TYPE_RELAYED {
+				continue
+			}
+			//todo
+			agent_signal_new_candidate(this, candidate)
+		}
+	}
+	return nil
 }

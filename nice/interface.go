@@ -1,14 +1,17 @@
 package nice
 
-import "net"
+import (
+	"net"
+	"strings"
+)
 
-func nice_interfaces_get_local_ips() ([]net.Addr, error) {
+func nice_interfaces_get_local_ips() ([]NiceAddress, error) {
 	ifs, err := net.Interfaces()
 	if err != nil {
 		return nil, err
 	}
 
-	a := make([]net.Addr, 0)
+	a := make([]NiceAddress, 0)
 	for i := 0; i < len(ifs); i++ {
 		if ifs[i].Flags & net.FlagLoopback != 0 {
 			continue;//ignore loop back
@@ -29,7 +32,11 @@ func nice_interfaces_get_local_ips() ([]net.Addr, error) {
 			}
 
 			if ipnet.IP.To4() != nil {
-				a = append(a, addrs[j])
+				c := NiceAddress{}
+				c.family = "ip4"
+				c.network = "udp"
+				c.ip = strings.Split(addrs[j].String(), "/")[0]
+				a = append(a, c)
 			}
 		}
 	}
