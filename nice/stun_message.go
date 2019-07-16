@@ -3,6 +3,7 @@ package nice
 import (
 	"go_srs/srs/utils"
 	"encoding/binary"
+	"crypto/rand"
 )
 
 /**
@@ -256,10 +257,12 @@ const (
  *
  * A type that holds a STUN transaction id.
  */
-type StunTransactionId [STUN_MESSAGE_TRANS_ID_LEN]byte
+type StunTransactionId []byte
 
 func NewStunTransactionId() *StunTransactionId {
-	return &StunTransactionId{}
+	var id StunTransactionId = make([]byte, STUN_MESSAGE_TRANS_ID_LEN)
+	rand.Read(id)
+	return &id
 }
 
 func (this StunTransactionId) Encode() [STUN_MESSAGE_TRANS_ID_LEN]byte {
@@ -476,6 +479,16 @@ type StunMessage struct  {
  * Initializes a STUN message buffer, with no attributes.
  * Returns: %TRUE if the initialization was successful
  */
-func stun_message_init (msg *StunMessage, c StunClass, m StunMethod, id StunTransactionId) bool {
+func stun_message_init (msg *StunMessage, c StunClass, m StunMethod, id *StunTransactionId) bool {
+	if (msg->buffer_len < STUN_MESSAGE_HEADER_LENGTH)
+	return FALSE;
+
+	memset (msg->buffer, 0, 4);
+	stun_set_type (msg->buffer, c, m);
+
+	memcpy (msg->buffer + STUN_MESSAGE_TRANS_ID_POS,
+		id, STUN_MESSAGE_TRANS_ID_LEN);
+
+	return TRUE;
 	return true
 }

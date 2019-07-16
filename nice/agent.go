@@ -300,3 +300,7 @@ func agent_signal_new_candidate(agent *NiceAgent, candidate *NiceCandidate) {
 	//todo
 }
 
+func agent_signal_component_state_change(agent *NiceAgent, stream_id uint, component_id uint, new_state NiceComponentState) {
+	//todo
+}
+

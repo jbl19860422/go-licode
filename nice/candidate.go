@@ -94,6 +94,7 @@ type NiceCandidate struct {
 	foundation		[]byte
 	username		string
 	password		string
+	server			NiceAddress
 	turn 			*TurnServer
 	sockptr			NiceSockInterface
 }
