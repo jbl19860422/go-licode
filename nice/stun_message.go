@@ -4,6 +4,7 @@ import (
 	"go_srs/srs/utils"
 	"encoding/binary"
 	"crypto/rand"
+	"errors"
 )
 
 /**
@@ -28,14 +29,17 @@ const (
 )
 
 type StunMessageAttribute interface {
-	Encode() []byte
-	Decode(d []byte)
+	Encode(stream *DataStream) error
+	Decode(stream *DataStream) error
 }
 
+/*
+ * tlv
+ */
 type StunMessageAttr struct {
 	typ 		StunAttributeType
 	len 		uint32
-	data 		[]byte
+	value 		[]byte
 }
 /**
  * StunMethod:
@@ -260,7 +264,17 @@ const (
 		/* 0xC002-0xFFFF */      /* reserved */
 )
 
+type StunSoftwareAttr struct {
+	name			string
+}
 
+func (this StunSoftwareAttr) Encode() []byte {
+	return []byte(this.name)
+}
+
+func (this *StunSoftwareAttr) Decode(d []byte) {
+	this.name = string(d)
+}
 
 /**
  * StunTransactionId:
@@ -278,6 +292,7 @@ func NewStunTransactionId() *StunTransactionId {
 func (this StunTransactionId) Encode() []byte {
 	return this
 }
+
 
 /**
  * StunError:
@@ -428,7 +443,6 @@ func (s StunMessageMagicCookie) Encode() []byte {
 type StunMessageHeader struct {
 	messageType		*StunMessageType
 	messageLen		uint16
-	magicCookie		*StunMessageMagicCookie
 	transactionId 	*StunTransactionId
 }
 
@@ -436,7 +450,6 @@ func NewStunMessageHeader(c StunClass, m StunMethod, l uint16) *StunMessageHeade
 	return &StunMessageHeader{
 		messageType:NewStunMessageType(c, m),
 		messageLen:l,
-		magicCookie:NewStunMessageMagicCookie(),
 		transactionId:NewStunTransactionId(),
 	}
 }
@@ -449,7 +462,6 @@ func (this StunMessageHeader) Encode() []byte {
 	c := utils.UInt16ToBytes(this.messageLen, binary.BigEndian)
 	//message length
 	data = append(data, c...)
-	data = append(data, this.magicCookie.Encode()...)
 	return data
 }
 
@@ -470,13 +482,37 @@ func (this StunMessageHeader) Encode() []byte {
 */
 type StunMessage struct  {
 	agent 			*StunAgent
-
 	messageHeader 	StunMessageHeader
+	magicCookie		*StunMessageMagicCookie
+	attrs			[]StunMessageAttribute
 
 	buffer 			[]byte
 	key 			[]byte
 	long_term_key 	[16]byte
 	long_term_valid bool
+}
+
+func (this *StunMessage) AddAttr(attr StunMessageAttribute) {
+	this.attrs = append(this.attrs, attr)
+}
+
+func (this *StunMessage) AddMagicCookie() {
+	if this.magicCookie == nil {
+		this.magicCookie = NewStunMessageMagicCookie()
+	}
+}
+
+func (this StunMessage) Encode() []byte {
+	d := make([]byte, 0)
+	d = append(d, this.messageHeader.Encode()...)
+	if this.magicCookie != nil {
+		d = append(d, this.magicCookie.Encode()...)
+	}
+
+	for i := 0; i < len(this.attrs); i++ {
+		d = append(d, this.attrs[i].Encode()...)
+	}
+	return d
 }
 
 /**
