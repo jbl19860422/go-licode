@@ -27,6 +27,16 @@ const (
 	STUN_ERROR		=3
 )
 
+type StunMessageAttribute interface {
+	Encode() []byte
+	Decode(d []byte)
+}
+
+type StunMessageAttr struct {
+	typ 		StunAttributeType
+	len 		uint32
+	data 		[]byte
+}
 /**
  * StunMethod:
  * @STUN_BINDING: The Binding method as defined by the RFC5389
@@ -170,9 +180,9 @@ const (
  */
 /* Should be in sync with stun_is_unknown() */
 
-type StunAttribute int
+type StunAttributeType int32
 const (
-	_ StunAttribute = iota
+	_ StunAttributeType = iota
 	STUN_ATTRIBUTE_MAPPED_ADDRESS	=	0x0001    /* RFC5389 */
 	STUN_ATTRIBUTE_RESPONSE_ADDRESS	=	0x0002  /* old RFC3489 */
 	STUN_ATTRIBUTE_CHANGE_REQUEST	=	0x0003    /* old RFC3489 */
@@ -265,7 +275,7 @@ func NewStunTransactionId() *StunTransactionId {
 	return &id
 }
 
-func (this StunTransactionId) Encode() [STUN_MESSAGE_TRANS_ID_LEN]byte {
+func (this StunTransactionId) Encode() []byte {
 	return this
 }
 
@@ -480,9 +490,6 @@ type StunMessage struct  {
  * Returns: %TRUE if the initialization was successful
  */
 func stun_message_init (msg *StunMessage, c StunClass, m StunMethod, id *StunTransactionId) bool {
-	if (msg->buffer_len < STUN_MESSAGE_HEADER_LENGTH)
-	return FALSE;
-
 	memset (msg->buffer, 0, 4);
 	stun_set_type (msg->buffer, c, m);
 
