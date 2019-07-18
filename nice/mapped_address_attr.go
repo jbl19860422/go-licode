@@ -12,21 +12,15 @@ const (
 	MAPPED_ADDRESS_FAMILY_IPV6 	= 	0x02
 )
 
-type StunMappedAddressAttr struct {
-	header 			StunAttrHeader
+type StunMappedAddressAttrValue struct {
 	zero 			byte
 	family			MAPPED_ADDRESS_FAMILY
 	port 			uint16
 	ip 				[]byte	//If the address family is IPv6, the address MUST be 128 bits,All fields must be in network byte order
-	padding 		[]byte
 }
 
-func NewStunMappedAddressAttr(f MAPPED_ADDRESS_FAMILY, p uint16, ip []byte) *StunMappedAddressAttr {
-	s := &StunMappedAddressAttr{
-		header:StunAttrHeader{
-			typ:STUN_ATTRIBUTE_MAPPED_ADDRESS,
-			len:0,
-		},
+func NewStunMappedAddressAttrValue(f MAPPED_ADDRESS_FAMILY, p uint16, ip []byte) *StunMappedAddressAttrValue {
+	s := &StunMappedAddressAttrValue{
 		zero:0x00,
 		family:f,
 		port:p,
@@ -35,15 +29,19 @@ func NewStunMappedAddressAttr(f MAPPED_ADDRESS_FAMILY, p uint16, ip []byte) *Stu
 	return s
 }
 
-func (this StunMappedAddressAttr) Encode(stream *DataStream) error {
-	this.header.Encode(stream)
+func (this StunMappedAddressAttrValue) Encode(stream *DataStream) error {
+	stream.WriteByte(this.zero)
 	stream.WriteByte(byte(this.family))
 	stream.WriteUInt16(this.port, binary.BigEndian)
 	stream.WriteBytes(this.ip)
 	return nil
 }
 
-func (this *StunMappedAddressAttr) Decode(stream *DataStream) (err error) {
+func (this StunMappedAddressAttrValue) GetSize() uint16 {
+	return 4 + uint16(len(this.ip))
+}
+
+func (this *StunMappedAddressAttrValue) Decode(stream *DataStream) (err error) {
 	_, err = stream.ReadByte()	//zero byte
 	if err != nil {
 		return

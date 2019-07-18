@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 
-type StunXorMappedAddressAttr struct {
+type StunXorMappedAddressAttrValue struct {
 	zero 			byte
 	family			MAPPED_ADDRESS_FAMILY
 	port 			uint16
@@ -14,8 +14,8 @@ type StunXorMappedAddressAttr struct {
 	transactionId 	*StunTransactionId		//用于編解碼
 }
 
-func NewStunXorMappedAddressAttr(f MAPPED_ADDRESS_FAMILY, p uint16, ip []byte) *StunXorMappedAddressAttr {
-	s := &StunXorMappedAddressAttr{
+func NewStunXorMappedAddressAttrValue(f MAPPED_ADDRESS_FAMILY, p uint16, ip []byte) *StunXorMappedAddressAttrValue {
+	s := &StunXorMappedAddressAttrValue{
 		zero:0x00,
 		family:f,
 		port:p,
@@ -24,15 +24,20 @@ func NewStunXorMappedAddressAttr(f MAPPED_ADDRESS_FAMILY, p uint16, ip []byte) *
 	return s
 }
 
-func (this *StunXorMappedAddressAttr) SetMagicCookie(m *StunMessageMagicCookie) {
+func (this *StunXorMappedAddressAttrValue) SetMagicCookie(m *StunMessageMagicCookie) {
 	this.magicCookie = m
 }
 
-func (this *StunXorMappedAddressAttr) SetTransactionId(s *StunTransactionId) {
+func (this *StunXorMappedAddressAttrValue) SetTransactionId(s *StunTransactionId) {
 	this.transactionId = s
 }
 
-func (this StunXorMappedAddressAttr) Encode(stream *DataStream) error {
+func (this StunXorMappedAddressAttrValue) GetSize() uint16 {
+	return 4 + uint16(len(this.ip))
+}
+
+func (this StunXorMappedAddressAttrValue) Encode(stream *DataStream) error {
+	stream.WriteByte(this.zero)
 	stream.WriteByte(byte(this.family))
 	if this.magicCookie == nil {
 		return errors.New("need magic cookie to encode xor mapped address attr")
@@ -62,7 +67,7 @@ func (this StunXorMappedAddressAttr) Encode(stream *DataStream) error {
 	return nil
 }
 
-func (this *StunXorMappedAddressAttr) Decode(stream *DataStream) (err error) {
+func (this *StunXorMappedAddressAttrValue) Decode(stream *DataStream) (err error) {
 	_, err = stream.ReadByte()	//zero byte
 	if err != nil {
 		return

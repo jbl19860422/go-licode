@@ -4,6 +4,7 @@ import (
 	"go_srs/srs/utils"
 	"encoding/binary"
 	"crypto/rand"
+	"errors"
 )
 
 /**
@@ -20,41 +21,13 @@ import (
 /* Message classes */
 type StunClass int
 const (
-	_ StunClass 	= iota
-	STUN_REQUEST 	= 0
-	STUN_INDICATION = 1
-	STUN_RESPONSE	= 2
-	STUN_ERROR		=3
+	_ StunClass 	= 	iota
+	STUN_REQUEST 	= 	0
+	STUN_INDICATION = 	1
+	STUN_RESPONSE	= 	2
+	STUN_ERROR		=	3
 )
 
-type StunMessageAttribute interface {
-	Encode(stream *DataStream) error
-	Decode(stream *DataStream) error
-}
-
-/*
- * tlv
- */
-type StunAttrHeader struct {
-	typ 		StunAttributeType
-	len 		uint16
-}
-
-type StunAttrValue interface {
-	Encode(stream *DataStream) error
-	Decode(stream *DataStream) error
-}
-
-type StunAttr struct {
-	header 	StunAttrHeader
-	value 	StunAttrValue
-	padding []byte
-}
-
-func (this StunAttrHeader) Encode(stream *DataStream) {
-	stream.WriteUInt16(uint16(this.typ), binary.BigEndian)
-	stream.WriteUInt16(this.len, binary.BigEndian)
-}
 /**
  * StunMethod:
  * @STUN_BINDING: The Binding method as defined by the RFC5389
@@ -83,7 +56,7 @@ func (this StunAttrHeader) Encode(stream *DataStream) {
 /* Message methods */
 type StunMethod int
 const (
-	_ StunMethod 		= iota
+	_ StunMethod 		= 	iota
 	STUN_BINDING		=	0x001    /* RFC5389 */
 	STUN_SHARED_SECRET	=	0x002  /* old RFC3489 */
 	STUN_ALLOCATE		=	0x003    /* TURN-12 */
@@ -271,24 +244,61 @@ const (
 	STUN_ATTRIBUTE_MS_SEQUENCE_NUMBER=	0x8050     /* MS-TURN */
 	/* 0x8051-0x8053 */      /* reserved */
 	STUN_ATTRIBUTE_CANDIDATE_IDENTIFIER=0x8054     /* MS-ICE2 */
-		/* 0x8055-0x806F */      /* reserved */
+	/* 0x8055-0x806F */      /* reserved */
 	STUN_ATTRIBUTE_MS_IMPLEMENTATION_VERSION=0x8070 /* MS-ICE2 */
-		/* 0x8071-0xC000 */      /* reserved */
+	/* 0x8071-0xC000 */      /* reserved */
 	STUN_ATTRIBUTE_NOMINATION=0xC001 /* https://tools.ietf.org/html/draft-thatcher-ice-renomination-00 */
-		/* 0xC002-0xFFFF */      /* reserved */
+	/* 0xC002-0xFFFF */      /* reserved */
 )
 
-type StunSoftwareAttr struct {
-	name			string
+/*
+ * tlv
+ */
+type StunAttrHeader struct {
+	typ 		StunAttributeType
+	len 		uint16
 }
 
-func (this StunSoftwareAttr) Encode() []byte {
-	return []byte(this.name)
+func (this StunAttrHeader) Encode(stream *DataStream) {
+	stream.WriteUInt16(uint16(this.typ), binary.BigEndian)
+	stream.WriteUInt16(this.len, binary.BigEndian)
 }
 
-func (this *StunSoftwareAttr) Decode(d []byte) {
-	this.name = string(d)
+func (this StunAttrHeader) GetSize() uint16 {
+	return 4
 }
+
+type StunAttrValue interface {
+	Encode(stream *DataStream) error
+	Decode(stream *DataStream) error
+	GetSize() uint16
+}
+
+type StunAttr struct {
+	header 		StunAttrHeader
+	value 		StunAttrValue
+	padding 	[]byte
+}
+
+func (this *StunAttr) Encode(stream *DataStream) error {
+	this.header.len = this.value.GetSize()
+	this.header.Encode(stream)
+	this.value.Encode(stream)
+	paddingBytes := 4 - this.value.GetSize()%4
+	if paddingBytes > 0 {
+		this.padding = make([]byte, paddingBytes)
+		stream.WriteBytes(this.padding)				//The padding bits are ignored, and may be any value
+	}
+	return nil
+}
+
+func (this StunAttr) GetSize() uint16 {
+	s := this.header.GetSize()
+	s += this.value.GetSize()
+	s = 4*((s + 3)%4)	//add padding
+	return s
+}
+
 
 /**
  * StunTransactionId:
@@ -303,8 +313,26 @@ func NewStunTransactionId() *StunTransactionId {
 	return &id
 }
 
-func (this StunTransactionId) Encode() []byte {
-	return this
+func (this StunTransactionId) Encode(stream *DataStream) error {
+	if this == nil {
+		return errors.New("StunTransactionId is nil")
+	}
+
+	stream.WriteBytes(this)
+	return nil
+}
+
+func (this *StunTransactionId) Decode(stream *DataStream) error {
+	if this == nil {
+		return errors.New("StunTransactionId is nil")
+	}
+
+	var err error
+	*this,err = stream.ReadBytes(STUN_MESSAGE_TRANS_ID_LEN)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 
@@ -426,14 +454,14 @@ func NewStunMessageType(c StunClass, m StunMethod) *StunMessageType {
 	}
 }
 
-func (this StunMessageType) Encode() [2]byte {
-	var b [2]byte
-	var c byte
-	c = (byte(this.class) >> 1) | ((byte(this.method) >> 6) & 0x3e)
-	b[0] = c
-	c = ((byte(this.class) << 4) & 0x10) | (byte(this.method) & 0x0F) | ((byte(this.method) << 1) & 0xe0)
-	b[1] = c
-	return b
+func (this StunMessageType) Encode(stream *DataStream) error {
+	stream.WriteByte((byte(this.class) >> 1) | ((byte(this.method) >> 6) & 0x3e))
+	stream.WriteByte(((byte(this.class) << 4) & 0x10) | (byte(this.method) & 0x0F) | ((byte(this.method) << 1) & 0xe0))
+	return nil
+}
+
+func (this *StunMessageType) Decode(stream *DataStream) error {
+	return nil
 }
 
 type StunMessageMagicCookie []byte
@@ -450,8 +478,13 @@ func NewStunMessageMagicCookie() *StunMessageMagicCookie {
 	return &m
 }
 
-func (s StunMessageMagicCookie) Encode() []byte {
-	return s
+func (s StunMessageMagicCookie) Encode(stream *DataStream) error {
+	stream.WriteBytes(s)
+	return nil
+}
+
+func (s *StunMessageMagicCookie) Decode(stream *DataStream) error {
+	return nil
 }
 
 type StunMessageHeader struct {
@@ -468,15 +501,12 @@ func NewStunMessageHeader(c StunClass, m StunMethod, l uint16) *StunMessageHeade
 	}
 }
 
-func (this StunMessageHeader) Encode() []byte {
-	data := make([]byte, 0)
-	b := this.messageType.Encode()
+func (this StunMessageHeader) Encode(stream *DataStream) error {
 	//message type
-	data = append(data, []byte(b[0:2])...)
-	c := utils.UInt16ToBytes(this.messageLen, binary.BigEndian)
+	this.messageType.Encode(stream)
 	//message length
-	data = append(data, c...)
-	return data
+	stream.WriteUInt16(this.messageLen, binary.BigEndian)
+	return nil
 }
 
 /**
@@ -495,57 +525,45 @@ func (this StunMessageHeader) Encode() []byte {
  * This structure represents a STUN message
 */
 type StunMessage struct  {
-	agent 			*StunAgent
-	messageHeader 	StunMessageHeader
+	messageHeader 	*StunMessageHeader
 	magicCookie		*StunMessageMagicCookie
 	attrs			[]StunAttr
-
-	buffer 			[]byte
-	key 			[]byte
-	long_term_key 	[16]byte
-	long_term_valid bool
 }
 
-func (this *StunMessage) AddAttr(attr StunMessageAttribute) {
+func NewStunMessage(c StunClass, m StunMethod) *StunMessage {
+	s := &StunMessage{}
+	s.messageHeader = NewStunMessageHeader(c, m, 0) // len will be fill at last
+	s.magicCookie = NewStunMessageMagicCookie()
+	return s
+}
+
+func (this *StunMessage) AddAttr(attr StunAttr) {
 	this.attrs = append(this.attrs, attr)
 }
 
-func (this *StunMessage) AddMagicCookie() {
-	if this.magicCookie == nil {
-		this.magicCookie = NewStunMessageMagicCookie()
-	}
-}
-
-func (this StunMessage) Encode() []byte {
-	d := make([]byte, 0)
-	d = append(d, this.messageHeader.Encode()...)
-	if this.magicCookie != nil {
-		d = append(d, this.magicCookie.Encode()...)
-	}
-
+func (this StunMessage) Encode(stream *DataStream) error {
+	/*
+	* The message length MUST contain the size, in bytes, of the message
+   	* not including the 20-byte STUN header.  Since all STUN attributes are
+   	* padded to a multiple of 4 bytes, the last 2 bits of this field are
+   	* always zero.  This provides another way to distinguish STUN packets
+   	* from packets of other protocols.
+	* that is the len of attrs
+	*/
+	//caculate the message length
+	var l uint16 = 0
 	for i := 0; i < len(this.attrs); i++ {
-		d = append(d, this.attrs[i].Encode()...)
+		l += this.attrs[i].GetSize()
 	}
-	return d
-}
-
-/**
- * stun_message_init:
- * @msg: The #StunMessage to initializeStunClass
- * @c: STUN message class (host byte order)
- * @m: STUN message method (host byte order)
- * @id: 16-bytes transaction ID
- *
- * Initializes a STUN message buffer, with no attributes.
- * Returns: %TRUE if the initialization was successful
- */
-func stun_message_init (msg *StunMessage, c StunClass, m StunMethod, id *StunTransactionId) bool {
-	memset (msg->buffer, 0, 4);
-	stun_set_type (msg->buffer, c, m);
-
-	memcpy (msg->buffer + STUN_MESSAGE_TRANS_ID_POS,
-		id, STUN_MESSAGE_TRANS_ID_LEN);
-
-	return TRUE;
-	return true
+	this.messageHeader.messageLen = l
+	//encode message header
+	this.messageHeader.Encode(stream)
+	if this.magicCookie != nil {
+		this.magicCookie.Encode(stream)
+	}
+	//encode attrs
+	for i := 0; i < len(this.attrs); i++ {
+		this.attrs[i].Encode(stream)
+	}
+	return nil
 }

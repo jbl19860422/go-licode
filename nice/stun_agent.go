@@ -207,13 +207,3 @@ func stun_agent_init(agent *StunAgent, compatibility StunCompatibility, usage_fl
 	}
 }
 
-func stun_agent_init_request(agent *StunAgent, msg *StunMessage, buffer []byte, m StunMethod) bool {
-	var ret bool
-	var id *StunTransactionId = NewStunTransactionId()
-	msg.buffer = buffer
-	msg.agent = agent
-	msg.long_term_valid = false
-	ret = stun_message_init(msg, STUN_REQUEST, m, id)
-	return ret
-}
-
